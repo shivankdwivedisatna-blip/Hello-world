@@ -1,0 +1,323 @@
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define FILE_NAME "students.dat"
+#define SUBJECTS 5
+
+// Structure to store student information
+struct Student {
+    int rollNo;
+    char name[50];
+    char course[40];
+    float marks[SUBJECTS];
+};
+
+// Function to calculate percentage
+float calculatePercentage(struct Student s) {
+    float total = 0;
+
+    for (int i = 0; i < SUBJECTS; i++) {
+        total += s.marks[i];
+    }
+
+    return total / SUBJECTS;
+}
+
+// Function to calculate grade
+char calculateGrade(float percentage) {
+    if (percentage >= 90)
+        return 'A';
+    else if (percentage >= 75)
+        return 'B';
+    else if (percentage >= 60)
+        return 'C';
+    else if (percentage >= 40)
+        return 'D';
+    else
+        return 'F';
+}
+
+// Function to check duplicate roll number
+int rollNumberExists(int rollNo) {
+    FILE *fp = fopen(FILE_NAME, "rb");
+    struct Student s;
+
+    if (fp == NULL)
+        return 0;
+
+    while (fread(&s, sizeof(s), 1, fp) == 1) {
+        if (s.rollNo == rollNo) {
+            fclose(fp);
+            return 1;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+// Function to add student
+void addStudent() {
+    FILE *fp;
+    struct Student s;
+
+    printf("\nEnter Roll Number: ");
+    scanf("%d", &s.rollNo);
+
+    if (rollNumberExists(s.rollNo)) {
+        printf("Roll Number Already Exists!\n");
+        return;
+    }
+
+    printf("Enter Student Name: ");
+    scanf(" %49[^\n]", s.name);
+
+    printf("Enter Course Name: ");
+    scanf(" %39[^\n]", s.course);
+
+    for (int i = 0; i < SUBJECTS; i++) {
+        do {
+            printf("Enter Marks of Subject %d: ", i + 1);
+            scanf("%f", &s.marks[i]);
+
+            if (s.marks[i] < 0 || s.marks[i] > 100)
+                printf("Enter marks between 0 and 100.\n");
+
+        } while (s.marks[i] < 0 || s.marks[i] > 100);
+    }
+
+    fp = fopen(FILE_NAME, "ab");
+
+    if (fp == NULL) {
+        printf("File Error!\n");
+        return;
+    }
+
+    fwrite(&s, sizeof(s), 1, fp);
+    fclose(fp);
+
+    printf("\nStudent Added Successfully!\n");
+}
+
+// Function to display all students
+void displayStudents() {
+    FILE *fp = fopen(FILE_NAME, "rb");
+    struct Student s;
+    int count = 0;
+
+    if (fp == NULL) {
+        printf("\nNo Records Found!\n");
+        return;
+    }
+
+    printf("\n===== STUDENT RECORDS =====\n");
+
+    while (fread(&s, sizeof(s), 1, fp) == 1) {
+        printf("\nRoll Number: %d", s.rollNo);
+        printf("\nName: %s", s.name);
+        printf("\nCourse: %s", s.course);
+
+        for (int i = 0; i < SUBJECTS; i++) {
+            printf("\nSubject %d Marks: %.2f",
+                   i + 1, s.marks[i]);
+        }
+
+        float percentage = calculatePercentage(s);
+
+        printf("\nPercentage: %.2f%%", percentage);
+        printf("\nGrade: %c\n", calculateGrade(percentage));
+
+        count++;
+    }
+
+    if (count == 0)
+        printf("No Records Found!\n");
+
+    fclose(fp);
+}
+
+// Function to search student
+void searchStudent() {
+    FILE *fp = fopen(FILE_NAME, "rb");
+    struct Student s;
+    int rollNo, found = 0;
+
+    printf("\nEnter Roll Number to Search: ");
+    scanf("%d", &rollNo);
+
+    if (fp == NULL) {
+        printf("No Records Found!\n");
+        return;
+    }
+
+    while (fread(&s, sizeof(s), 1, fp) == 1) {
+        if (s.rollNo == rollNo) {
+            printf("\nStudent Found!\n");
+            printf("Roll Number: %d\n", s.rollNo);
+            printf("Name: %s\n", s.name);
+            printf("Course: %s\n", s.course);
+            printf("Percentage: %.2f%%\n",
+                   calculatePercentage(s));
+            printf("Grade: %c\n",
+                   calculateGrade(calculatePercentage(s)));
+
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+        printf("Student Not Found!\n");
+
+    fclose(fp);
+}
+
+// Function to update student
+void updateStudent() {
+    FILE *fp = fopen(FILE_NAME, "rb+");
+    struct Student s;
+    int rollNo, found = 0;
+
+    printf("\nEnter Roll Number to Update: ");
+    scanf("%d", &rollNo);
+
+    if (fp == NULL) {
+        printf("No Records Found!\n");
+        return;
+    }
+
+    while (fread(&s, sizeof(s), 1, fp) == 1) {
+        if (s.rollNo == rollNo) {
+            printf("Enter New Name: ");
+            scanf(" %49[^\n]", s.name);
+
+            printf("Enter New Course: ");
+            scanf(" %39[^\n]", s.course);
+
+            for (int i = 0; i < SUBJECTS; i++) {
+                do {
+                    printf("Enter New Marks of Subject %d: ", i + 1);
+                    scanf("%f", &s.marks[i]);
+
+                    if (s.marks[i] < 0 || s.marks[i] > 100)
+                        printf("Enter marks between 0 and 100.\n");
+
+                } while (s.marks[i] < 0 || s.marks[i] > 100);
+            }
+
+            fseek(fp, -(long)sizeof(s), SEEK_CUR);
+            fwrite(&s, sizeof(s), 1, fp);
+
+            printf("\nRecord Updated Successfully!\n");
+            found = 1;
+            break;
+        }
+    }
+
+    if (!found)
+        printf("Student Not Found!\n");
+
+    fclose(fp);
+}
+
+// Function to delete student
+void deleteStudent() {
+    FILE *fp = fopen(FILE_NAME, "rb");
+    FILE *temp;
+    struct Student s;
+    int rollNo, found = 0;
+
+    printf("\nEnter Roll Number to Delete: ");
+    scanf("%d", &rollNo);
+
+    if (fp == NULL) {
+        printf("No Records Found!\n");
+        return;
+    }
+
+    temp = fopen("temp.dat", "wb");
+
+    if (temp == NULL) {
+        printf("Unable to Create Temporary File!\n");
+        fclose(fp);
+        return;
+    }
+
+    while (fread(&s, sizeof(s), 1, fp) == 1) {
+        if (s.rollNo == rollNo) {
+            found = 1;
+        } else {
+            fwrite(&s, sizeof(s), 1, temp);
+        }
+    }
+
+    fclose(fp);
+    fclose(temp);
+
+    if (found) {
+        if (remove(FILE_NAME) == 0 &&
+            rename("temp.dat", FILE_NAME) == 0) {
+            printf("Record Deleted Successfully!\n");
+        } else {
+            printf("Error Deleting Record!\n");
+        }
+    } else {
+        remove("temp.dat");
+        printf("Student Not Found!\n");
+    }
+}
+
+// Main function
+int main() {
+    int choice;
+
+    do {
+        printf("\n================================");
+        printf("\n  STUDENT RECORD MANAGEMENT");
+        printf("\n================================");
+        printf("\n1. Add Student");
+        printf("\n2. Display All Students");
+        printf("\n3. Search Student");
+        printf("\n4. Update Student");
+        printf("\n5. Delete Student");
+        printf("\n6. Exit");
+        printf("\n================================");
+
+        printf("\nEnter Your Choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                addStudent();
+                break;
+
+            case 2:
+                displayStudents();
+                break;
+
+            case 3:
+                searchStudent();
+                break;
+
+            case 4:
+                updateStudent();
+                break;
+
+            case 5:
+                deleteStudent();
+                break;
+
+            case 6:
+                printf("\nThank You!\n");
+                break;
+
+            default:
+                printf("\nInvalid Choice! Try Again.\n");
+        }
+
+    } while (choice != 6);
+
+    return 0;
+}
